@@ -1,0 +1,135 @@
+import numpy as np
+import pandas as pd
+import re
+from collections import Counter
+from sklearn.feature_extraction.text import CountVectorizer
+import nltk
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
+
+# Function to read CSV files and create a corpus
+def corpus_creator(file_paths):
+    corpus = []
+    for file_path in file_paths:
+        df = pd.read_csv(file_path, header=None)
+        for index, row in df.iterrows():
+            document = ' '.join(row.astype(str))
+            corpus.append(document)
+    return corpus
+
+# Preprocessing functions
+nltk.download('wordnet')
+nltk.download('stopwords')
+stop_words = set(stopwords.words('english'))
+
+def tokenize(text):
+    return re.findall(r'\b\w+\b', text.lower())
+
+def remove_punctuation(text):
+    return re.sub(r'[^\w\s]', '', text)
+
+def remove_stop_words(tokens):
+    return [token for token in tokens if token not in stop_words]
+
+def lemmatize_tokens(tokens):
+    lemmatizer = WordNetLemmatizer()
+    return [lemmatizer.lemmatize(token) for token in tokens]
+
+def remove_rare_words(tokens, min_count=2):
+    token_counts = Counter(tokens)
+    return [token for token in tokens if token_counts[token] >= min_count]
+
+def preprocess_corpus(corpus):
+    processed_corpus = []
+    for doc in corpus:
+        text = remove_punctuation(doc)
+        tokens = tokenize(text)
+        tokens = remove_stop_words(tokens)
+        tokens = lemmatize_tokens(tokens)
+        tokens = remove_rare_words(tokens)
+        processed_corpus.append(' '.join(tokens))
+    return processed_corpus
+
+# Define file paths and create the corpus
+csv_files = ['path/to/first_file.csv', 'path/to/second_file.csv']
+corpus = corpus_creator(csv_files)
+corpus = preprocess_corpus(corpus)
+
+# Vectorization
+vectorizer = CountVectorizer()
+X = vectorizer.fit_transform(corpus)
+vocab = vectorizer.get_feature_names_out()
+
+# LDA implementation with Gibbs Sampling
+def run_lda(X, K, alpha, beta, iterations):
+    D, V = X.shape
+    topic_assignments = np.random.randint(K, size=(D, V))
+    doc_topic_counts = np.zeros((D, K)) + alpha
+    topic_word_counts = np.zeros((K, V)) + beta
+    topic_counts = np.zeros(K) + V * beta
+
+    for d in range(D):
+        for v in range(V):
+            word_count = X[d, v]
+            topic = topic_assignments[d, v]
+            doc_topic_counts[d, topic] += word_count
+            topic_word_counts[topic, v] += word_count
+            topic_counts[topic] += word_count
+
+    for iteration in range(iterations):
+        for d in range(D):
+            for v in range(V):
+                word_count = X[d, v]
+                if word_count == 0:
+                    continue
+                old_topic = topic_assignments[d, v]
+                doc_topic_counts[d, old_topic] -= word_count
+                topic_word_counts[old_topic, v] -= word_count
+                topic_counts[old_topic] -= word_count
+                topic_probs = (doc_topic_counts[d, :] *
+                               topic_word_counts[:, v] /
+                               topic_counts)
+                topic_probs /= topic_probs.sum()
+                new_topic = np.random.choice(K, p=topic_probs)
+                doc_topic_counts[d, new_topic] += word_count
+                topic_word_counts[new_topic, v] += word_count
+                topic_counts[new_topic] += word_count
+                topic_assignments[d, v] = new_topic
+
+    phi = topic_word_counts / topic_counts[:, np.newaxis]
+    theta = doc_topic_counts / doc_topic_counts.sum(axis=1)[:, np.newaxis]
+    return phi, theta
+
+# Grid search for hyperparameter tuning
+def grid_search_lda(X, K_values, alpha_values, beta_values, iterations):
+    best_K = K_values[0]
+    best_alpha = alpha_values[0]
+    best_beta = beta_values[0]
+    best_score = float('inf')
+
+    for K in K_values:
+        for alpha in alpha_values:
+            for beta in beta_values:
+                phi, theta = run_lda(X, K, alpha, beta, iterations)
+                score = calculate_score(phi, theta)  # Define your scoring function
+                if score < best_score:
+                    best_score = score
+                    best_K = K
+                    best_alpha = alpha
+                    best_beta = beta
+
+    return best_K, best_alpha, best_beta
+
+# Define hyperparameter ranges
+K_values = [5, 10, 15]
+alpha_values = [0.1, 0.5, 1.0]
+beta_values = [0.01, 0.05, 0.1]
+
+# Perform grid search
+best_K, best_alpha, best_beta = grid_search_lda(X, K_values, alpha_values, beta_values, 100)
+
+# Run LDA with the best hyperparameters
+phi, theta = run_lda(X, best_K, best_alpha, best_beta, 1000)
+
+# Output the results
+print(f"Best K: {best_K}, Best Alpha: {best_alpha}, Best Beta: {best_beta}")
