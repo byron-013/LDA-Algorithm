@@ -40,11 +40,26 @@ Open the Jupyter notebook and run all cells:
 jupyter notebook LDA/LDA.ipynb
 ```
 
-The notebook ships with a demo corpus so no external data is needed. To use your own data, replace the demo corpus cell with a call to `corpus_creator()`:
+The notebook ships with a demo corpus so no external data is needed. Switch datasets by changing the `DATASET` variable in the notebook:
+
+```python
+# Options: "demo", "ag-news", "20-newsgroups"
+DATASET = "demo"
+```
+
+To add your own dataset, create a folder under `LDA/datasets/` with a CSV and a `config.json` (see `datasets/ag-news/config.json` for the format). You can also load files directly with `corpus_creator()`:
 
 ```python
 corpus = corpus_creator(['data/articles.csv', 'data/paper.pdf'])
 ```
+
+### Stock Datasets
+
+| Dataset | Description | Sampled Docs | Categories |
+|---------|-------------|-------------|------------|
+| `demo` | Built-in synthetic corpus | 24 | 4 |
+| `ag-news` | News articles (World, Sports, Business, Sci/Tech) | 200 | 4 |
+| `20-newsgroups` | Classic NLP newsgroup posts (computers, science, politics, etc.) | 200 | 20 |
 
 ## Example Output
 
@@ -54,6 +69,23 @@ After running the full pipeline you will see:
 2. **Top words per topic** — bar charts showing the most probable words in each discovered topic
 3. **Document–topic heatmap** — a color-coded matrix showing how each document distributes across topics
 4. **Summary table** — dominant topic assignment and weight for every document
+
+## Performance & Scalability
+
+This implementation is **educational, not production-grade**. The goal is to expose the internals of LDA and Gibbs sampling — every step is written in plain Python/NumPy so you can read, modify, and learn from it.
+
+The pure-Python Gibbs sampler uses triple-nested loops (iterations x documents x vocabulary), which means runtime scales steeply with corpus size. Approximate runtimes on a typical machine:
+
+| Documents | Vocabulary | Grid Search + Final Model |
+|-----------|-----------|--------------------------|
+| 24 | ~60 | ~1 minute |
+| 200 | ~1,000 | ~3 minutes |
+| 200 | ~2,500 | ~12 minutes |
+| 500 | ~5,000 | ~90 minutes |
+
+**Recommended limits:** Keep corpora under ~300 documents for interactive use. For larger datasets, the stock configs sample a subset automatically.
+
+For production workloads with thousands or millions of documents, use an optimized library like [`gensim.models.LdaModel`](https://radimrehurek.com/gensim/models/ldamodel.html) or [`scikit-learn`'s `LatentDirichletAllocation`](https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.LatentDirichletAllocation.html) — these use compiled C/Cython code and variational inference, making them orders of magnitude faster.
 
 ## Dependencies
 
