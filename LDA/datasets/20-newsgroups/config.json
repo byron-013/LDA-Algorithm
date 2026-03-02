@@ -1,0 +1,8 @@
+{
+    "name": "20 Newsgroups",
+    "description": "Classic NLP benchmark — 18k newsgroup posts across 20 topics (computers, science, politics, religion, sports, etc.).",
+    "file": "data.csv",
+    "text_columns": ["Text"],
+    "label_column": "Category",
+    "sample_per_label": 10
+}
