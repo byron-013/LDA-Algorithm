@@ -1,0 +1,9 @@
+{
+    "name": "AG News",
+    "description": "News articles classified into World, Sports, Business, and Sci/Tech.",
+    "file": "train.csv",
+    "text_columns": ["Title", "Description"],
+    "label_column": "Class Index",
+    "label_map": {"1": "World", "2": "Sports", "3": "Business", "4": "Sci/Tech"},
+    "sample_per_label": 50
+}
